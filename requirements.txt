@@ -1,0 +1,27 @@
+# Core LangChain and LangGraph
+langchain>=0.1.0
+langchain-google-genai>=2.0.0
+langchain-huggingface>=0.0.5
+langchain-community>=0.0.20
+langgraph>=0.0.20
+
+# Vector Store and Embeddings
+faiss-cpu>=1.7.4
+sentence-transformers>=2.2.0
+
+# Document Processing
+pypdf>=3.17.0
+
+# Database and SQL
+sqlalchemy>=2.0.0
+sqlparse>=0.4.4
+
+# Web Search
+duckduckgo-search>=4.1.0
+
+# Utilities
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+
+# UI
+streamlit>=1.31.0
