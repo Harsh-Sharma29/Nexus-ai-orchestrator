@@ -4,7 +4,7 @@ Executes code safely with human approval for risky operations.
 """
 
 from typing import Dict, Any, Optional  
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 import re
 import ast

@@ -4,7 +4,7 @@ Generates and executes SQL queries with validation and human approval for risky 
 """
 
 from typing import Dict, Any, Optional
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 import re
 import sqlparse

@@ -4,7 +4,7 @@ Routes user queries to appropriate agents: RAG, SQL, Code, Research, or Chat.
 """
 
 from typing import Dict, Any
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from state.state import OrchestratorState, Intent
 from state.normalize import ensure_metadata, ensure_errors, ensure_intent

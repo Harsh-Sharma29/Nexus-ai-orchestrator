@@ -4,7 +4,7 @@ Handles conversational queries that don't require specialized agents.
 """
 
 from typing import Dict, Any
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from state.state import OrchestratorState
 from state.normalize import ensure_metadata, ensure_errors, normalize_state

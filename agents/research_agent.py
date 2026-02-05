@@ -4,7 +4,7 @@ Performs web research using search APIs and summarizes findings.
 """
 
 from typing import Dict, Any, List
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_community.tools import DuckDuckGoSearchRun
 from state.state import OrchestratorState
