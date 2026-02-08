@@ -34,7 +34,8 @@ class RAGAgent:
             chunk_overlap: Overlap between chunks
         """
         self.llm_router = llm_router
-        self.embeddings = HuggingFaceEmbeddings(model_name=embedding_model)
+        self._embedding_model_name = embedding_model
+        self._embeddings = None  # LAZY: Loaded on first use
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
@@ -69,6 +70,14 @@ Conversation history:
 
 Answer:""")
         ])
+
+    @property
+    def embeddings(self):
+        """Lazily load embeddings on first use (prevents startup blocking)."""
+        if self._embeddings is None:
+            from langchain_huggingface import HuggingFaceEmbeddings
+            self._embeddings = HuggingFaceEmbeddings(model_name=self._embedding_model_name)
+        return self._embeddings
 
     def _get_workspace_store(self, state: OrchestratorState) -> FAISS:
         """Get or create vector store for workspace (persisted on disk).

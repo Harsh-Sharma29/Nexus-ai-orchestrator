@@ -12,10 +12,21 @@ from typing import List
 import uuid
 
 import streamlit as st
-from orchestrator import AIOrchestrator
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# LAZY LOADING: AIOrchestrator imported only when needed (first user message)
+# This prevents Render startup timeout by avoiding heavy model loading at import time
+_orchestrator_instance = None
+
+def get_orchestrator():
+    """Lazily initialize the orchestrator on first use."""
+    global _orchestrator_instance
+    if _orchestrator_instance is None:
+        from orchestrator import AIOrchestrator
+        _orchestrator_instance = AIOrchestrator(enable_checkpointing=True)
+    return _orchestrator_instance
 
 from storage.sqlite_store import (
     create_workspace, list_workspaces, rename_workspace, list_workspace_documents,
@@ -970,7 +981,7 @@ if prompt:
         with chat_container:
             with st.chat_message("assistant"):
                 with st.spinner("Processing..."):
-                    orchestrator = AIOrchestrator(enable_checkpointing=True)
+                    orchestrator = get_orchestrator()
                     result = orchestrator.invoke(**inputs)
         
         final_answer = result.get("final_answer", "")

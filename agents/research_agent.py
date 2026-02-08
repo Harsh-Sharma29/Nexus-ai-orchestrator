@@ -33,12 +33,8 @@ class ResearchAgent:
         self.parser = StrOutputParser()
         self.max_results = max_results
         
-        # Initialize search tool
-        try:
-            self.search_tool = DuckDuckGoSearchRun()
-        except Exception:
-            # Fallback if DuckDuckGo not available
-            self.search_tool = None
+        # LAZY: Search tool loaded on first use (prevents startup blocking)
+        self._search_tool = None
         
         self.research_prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a research assistant. Answer questions using available information.
@@ -61,6 +57,18 @@ Conversation context:
 
 Provide a comprehensive answer:""")
         ])
+
+    @property
+    def search_tool(self):
+        """Lazily load search tool on first use (prevents startup blocking)."""
+        if self._search_tool is None:
+            try:
+                from langchain_community.tools import DuckDuckGoSearchRun
+                self._search_tool = DuckDuckGoSearchRun()
+            except Exception:
+                # Fallback if DuckDuckGo not available
+                self._search_tool = False  # Use False to mark as attempted
+        return self._search_tool if self._search_tool else None
 
     def search(self, query: str) -> List[Dict[str, Any]]:
         """Perform web search.

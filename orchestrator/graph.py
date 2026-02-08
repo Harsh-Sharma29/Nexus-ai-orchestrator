@@ -4,20 +4,11 @@ Graph-first design with explicit state passing and intent-based routing.
 """
 
 from typing import Dict, Any
-from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import MemorySaver
-
-from state.state import OrchestratorState
+from state.state import OrchestratorState, Intent
 from state.normalize import normalize_state, ensure_metadata, ensure_errors, ensure_intent
-from llm.router import LLMRouter
-from storage.sqlite_store import load_chat_messages, append_chat_messages, list_workspace_documents, upsert_document
-from agents.intent_router import IntentRouter
-from agents.rag_agent import RAGAgent
-from agents.sql_agent import SQLAgent
-from agents.code_agent import CodeAgent
-from agents.research_agent import ResearchAgent
-from agents.chat_agent import ChatAgent
-from state.state import Intent
+
+
+# LAZY IMPORTS: Heavy modules imported inside class __init__ to prevent startup blocking
 
 
 
@@ -35,6 +26,23 @@ class AIOrchestrator:
             llm_model: Default LLM model for agents
             enable_checkpointing: Enable state checkpointing for recovery
         """
+        # LAZY IMPORTS: All heavy modules loaded only when orchestrator is created
+        # This prevents Render startup timeout by deferring model loading
+        from langgraph.graph import StateGraph, END
+        from langgraph.checkpoint.memory import MemorySaver
+        from llm.router import LLMRouter
+        from agents.intent_router import IntentRouter
+        from agents.rag_agent import RAGAgent
+        from agents.sql_agent import SQLAgent
+        from agents.code_agent import CodeAgent
+        from agents.research_agent import ResearchAgent
+        from agents.chat_agent import ChatAgent
+        
+        # Store StateGraph and END for use in _build_graph
+        self._StateGraph = StateGraph
+        self._END = END
+        self._MemorySaver = MemorySaver
+        
         # Centralized quota-aware LLM router (Gemini primary, HF fallback on 429 only)
         self.llm_router = LLMRouter(primary_model=llm_model)
 
@@ -51,18 +59,18 @@ class AIOrchestrator:
         
         # Compile with checkpointing if enabled
         if enable_checkpointing:
-            memory = MemorySaver()
+            memory = self._MemorySaver()
             self.app = self.graph.compile(checkpointer=memory)
         else:
             self.app = self.graph.compile()
     
-    def _build_graph(self) -> StateGraph:
+    def _build_graph(self):
         """Build the LangGraph workflow.
         
         Returns:
             Configured StateGraph
         """
-        workflow = StateGraph(OrchestratorState)
+        workflow = self._StateGraph(OrchestratorState)
         
         # Add nodes
         workflow.add_node("load_persistent_context", self._load_persistent_context_node)
@@ -136,12 +144,15 @@ class AIOrchestrator:
         
         # Fallback handler always ends
         workflow.add_edge("fallback_handler", "save_persistent_context")
-        workflow.add_edge("save_persistent_context", END)
+        workflow.add_edge("save_persistent_context", self._END)
         
         return workflow
 
     def _load_persistent_context_node(self, state: OrchestratorState) -> OrchestratorState:
         """Load persisted chat history + workspace docs into state (SQLite)."""
+        # LAZY IMPORT: Storage functions loaded on first use
+        from storage.sqlite_store import load_chat_messages, list_workspace_documents, upsert_document
+        
         state = normalize_state(state)
         # Chat memory - SCOPED BY WORKSPACE
         ws_id = state.get("workspace_id") or "default"
@@ -210,6 +221,9 @@ class AIOrchestrator:
 
     def _save_persistent_context_node(self, state: OrchestratorState) -> OrchestratorState:
         """Persist new chat messages written during this run (SQLite)."""
+        # LAZY IMPORT: Storage function loaded on first use
+        from storage.sqlite_store import append_chat_messages
+        
         state = normalize_state(state)
         start = state.get("memory_loaded_count", 0)
         new_msgs = state.get("messages", [])[start:]
