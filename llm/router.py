@@ -62,10 +62,11 @@ class LLMRouter:
 
     def _get_fallback(self) -> ChatHuggingFace:
         if self._fallback is None:
+            huggingfacehub_api_token = os.getenv("HUGGINGFACEHUB_API_TOKEN") or os.getenv("HUGGINGFACE_API_TOKEN")
             endpoint = HuggingFaceEndpoint(
                 repo_id=self.fallback_repo_id,
                 temperature=self.fallback_temperature,
-                huggingfacehub_api_token=os.getenv("HUGGINGFACE_API_TOKEN"),
+                huggingfacehub_api_token=huggingfacehub_api_token,
             )
             self._fallback = ChatHuggingFace(llm=endpoint)
         return self._fallback
