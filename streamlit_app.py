@@ -12,6 +12,7 @@ from typing import List
 import uuid
 
 import streamlit as st
+import html
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -616,8 +617,49 @@ with input_container:
         )
 
     with col_mic:
-        components.html(
-            """
+        # Use a custom iframe via st.markdown to have full control over the 'allow' attribute.
+        # This resolves the 'Unrecognized feature' errors caused by Streamlit's default overly-broad permissions list.
+        # We manually specify 'allow="microphone"' and a targeted sandbox.
+        mic_html_content = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body { margin: 0; padding: 0; overflow: hidden; background: transparent; }
+                #voice-mic-wrapper {
+                    display: flex;
+                    align-items: flex-end;
+                    justify-content: center;
+                    height: 100vh;
+                }
+                #voice-mic-btn {
+                    width: 42px;
+                    height: 42px;
+                    border-radius: 8px;
+                    background: transparent;
+                    border: none;
+                    color: #6B7280;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    margin-bottom: 18px;
+                }
+                #voice-mic-btn:hover {
+                    background-color: #F3F4F6;
+                    color: #4F46E5;
+                }
+                #voice-mic-btn.listening {
+                    background-color: #FEE2E2;
+                    color: #DC2626;
+                    animation: pulse 1.5s infinite;
+                }
+                @keyframes pulse {
+                    0% { box-shadow: 0 0 0 0 rgba(220,38,38,.4); }
+                    70% { box-shadow: 0 0 0 6px rgba(220,38,38,0); }
+                    100% { box-shadow: 0 0 0 0 rgba(220,38,38,0); }
+                }
+            </style>
+        </head>
+        <body>
             <div id="voice-mic-wrapper">
                 <button id="voice-mic-btn" type="button" title="Click to speak">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
@@ -630,72 +672,26 @@ with input_container:
                     </svg>
                 </button>
             </div>
-
-            <style>
-                #voice-mic-wrapper {
-                    display: flex;
-                    align-items: flex-end;
-                    justify-content: center;
-                    height: 100%;
-                }
-
-                #voice-mic-btn {
-                    width: 42px;
-                    height: 42px;
-                    border-radius: 8px;
-                    background: transparent;
-                    border: none;
-                    color: #6B7280;
-                    cursor: pointer;
-                    transition: all 0.2s ease;
-                    margin-bottom: 18px; /* aligns with chat input */
-                }
-
-                #voice-mic-btn:hover {
-                    background-color: #F3F4F6;
-                    color: #4F46E5;
-                }
-
-                #voice-mic-btn.listening {
-                    background-color: #FEE2E2;
-                    color: #DC2626;
-                    animation: pulse 1.5s infinite;
-                }
-
-                @keyframes pulse {
-                    0% { box-shadow: 0 0 0 0 rgba(220,38,38,.4); }
-                    70% { box-shadow: 0 0 0 6px rgba(220,38,38,0); }
-                    100% { box-shadow: 0 0 0 0 rgba(220,38,38,0); }
-                }
-            </style>
-
             <script>
             (function () {
                 const btn = document.getElementById("voice-mic-btn");
-
                 if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
                     btn.style.display = "none";
                     return;
                 }
-
-                const SpeechRecognition =
-                    window.SpeechRecognition || window.webkitSpeechRecognition;
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
                 const recognition = new SpeechRecognition();
                 recognition.interimResults = true;
                 recognition.lang = "en-US";
-
                 let listening = false;
-
                 recognition.onstart = () => {
                     listening = true;
                     btn.classList.add("listening");
                 };
-
                 recognition.onend = () => {
                     listening = false;
                     btn.classList.remove("listening");
                 };
-
                 recognition.onresult = (event) => {
                     let transcript = "";
                     for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -703,7 +699,6 @@ with input_container:
                             transcript += event.results[i][0].transcript;
                         }
                     }
-
                     if (transcript) {
                         const textarea = window.parent.document.querySelector(
                             'textarea[data-testid="stChatInputTextArea"]'
@@ -712,27 +707,29 @@ with input_container:
                             const setter = Object.getOwnPropertyDescriptor(
                                 HTMLTextAreaElement.prototype, "value"
                             ).set;
-
                             const current = textarea.value;
-                            const prefix =
-                                current && !current.endsWith(" ")
-                                    ? current + " "
-                                    : current;
-
+                            const prefix = current && !current.endsWith(" ") ? current + " " : current;
                             setter.call(textarea, prefix + transcript);
                             textarea.dispatchEvent(new Event("input", { bubbles: true }));
                             textarea.focus();
                         }
                     }
                 };
-
                 btn.onclick = () => {
                     listening ? recognition.stop() : recognition.start();
                 };
             })();
             </script>
-            """,
-            height=70,
+        </body>
+        </html>
+        """
+        st.markdown(
+            f'<iframe srcdoc="{html.escape(mic_html_content)}" '
+            'style="border:none; width:100%; height:70px; overflow:hidden;" '
+            'allow="microphone" '
+            'sandbox="allow-scripts allow-same-origin">'
+            '</iframe>',
+            unsafe_allow_html=True
         )
 
 # Optional alignment polish
