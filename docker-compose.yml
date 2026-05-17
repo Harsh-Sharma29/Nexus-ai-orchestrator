@@ -1,0 +1,55 @@
+# ═══════════════════════════════════════════════════════════════════
+# Nexus AI Orchestrator – Docker Compose
+# ═══════════════════════════════════════════════════════════════════
+# Usage:
+#   docker compose up --build        # Build & start both services
+#   docker compose up -d             # Detached mode
+#   docker compose logs -f backend   # Tail backend logs
+#   docker compose down              # Stop & remove containers
+# ═══════════════════════════════════════════════════════════════════
+
+version: "3.9"
+
+services:
+  # ── FastAPI Backend ──────────────────────────────────────────────
+  backend:
+    build:
+      context: .                      # Project root (backend imports use backend.app.*)
+      dockerfile: backend/Dockerfile
+    container_name: nexus-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - SQLITE_DB_PATH=/app/data/memory.db
+    volumes:
+      - backend-data:/app/data        # Persist SQLite + FAISS indexes
+      - ./workspaces:/app/workspaces  # Shared workspace files (uploads)
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ── Streamlit Frontend ──────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend             # Self-contained (no AI deps)
+      dockerfile: Dockerfile
+    container_name: nexus-frontend
+    ports:
+      - "8501:8501"
+    environment:
+      - API_BASE_URL=http://backend:8000   # Docker-internal service URL
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  backend-data:
+    driver: local

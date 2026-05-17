@@ -1,0 +1,31 @@
+# ── Core Framework ───────────────────────────────────────────────────
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+python-dotenv>=1.0.0
+
+# ── LangChain & LangGraph ───────────────────────────────────────────
+langchain>=0.1.0
+langchain-core>=0.1.0
+langchain-google-genai>=2.0.0
+langchain-huggingface>=0.0.5
+langchain-community>=0.0.20
+langchain-text-splitters>=0.0.1
+langgraph>=0.0.20
+
+# ── Vector Store & Embeddings ────────────────────────────────────────
+faiss-cpu>=1.7.4
+
+# ── Document Processing ─────────────────────────────────────────────
+pypdf>=3.17.0
+
+# ── Database & SQL ───────────────────────────────────────────────────
+sqlalchemy>=2.0.0
+sqlparse>=0.4.4
+
+# ── Web Search ───────────────────────────────────────────────────────
+duckduckgo-search>=4.1.0
+
+# ── Typing extensions ───────────────────────────────────────────────
+typing_extensions>=4.8.0

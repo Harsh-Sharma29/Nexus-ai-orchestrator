@@ -9,7 +9,7 @@ langgraph>=0.0.20
 
 # Vector Store and Embeddings
 faiss-cpu>=1.7.4
-sentence-transformers>=2.2.0
+# sentence-transformers removed to save RAM on Render
 
 # Document Processing
 pypdf>=3.17.0

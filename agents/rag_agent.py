@@ -4,7 +4,7 @@ Handles document-based queries using vector embeddings and retrieval.
 """
 
 from typing import Dict, Any, List
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import TextLoader, PyPDFLoader
@@ -21,15 +21,15 @@ class RAGAgent:
     def __init__(
         self,
         llm_router: LLMRouter,
-        embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
+        embedding_model: str = "models/embedding-001",
         chunk_size: int = 1000,
         chunk_overlap: int = 200
     ):
         """Initialize RAG agent.
   
         Args:
-            llm_model: LLM model for generation
-            embedding_model: Embedding model for vectorization
+            llm_router: Centralized LLM router
+            embedding_model: Google embedding model
             chunk_size: Document chunk size
             chunk_overlap: Overlap between chunks
         """
@@ -42,7 +42,7 @@ class RAGAgent:
             length_function=len
         )
         
-        # Tenant-scoped vector stores (in-memory for demo, use persistent storage in production)
+        # Tenant-scoped vector stores
         self.vector_stores: Dict[str, FAISS] = {}
         
         self.qa_prompt = ChatPromptTemplate.from_messages([
@@ -73,10 +73,12 @@ Answer:""")
 
     @property
     def embeddings(self):
-        """Lazily load embeddings on first use (prevents startup blocking)."""
+        """Lazily load Google embeddings on first use (saves RAM)."""
         if self._embeddings is None:
-            from langchain_huggingface import HuggingFaceEmbeddings
-            self._embeddings = HuggingFaceEmbeddings(model_name=self._embedding_model_name)
+            self._embeddings = GoogleGenerativeAIEmbeddings(
+                model=self._embedding_model_name,
+                google_api_key=os.getenv("GOOGLE_API_KEY")
+            )
         return self._embeddings
 
     def _get_workspace_store(self, state: OrchestratorState) -> FAISS:

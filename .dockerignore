@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Virtual environments
+myenv/
+venv/
+.venv/
+env/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Streamlit cache
+.streamlit/
+
+# SQLite (runtime only – don't bake into image)
+*.db
+
+# Docker
+docker-compose*.yml
+Dockerfile
+
+# Tests & docs
+*.md
+plan.tst
+runtime.txt
