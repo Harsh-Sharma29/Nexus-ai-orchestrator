@@ -19,6 +19,11 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from backend.app.config import get_settings
+from backend.app.utils.embeddings import (
+    create_google_embeddings,
+    normalize_embedding_model_name,
+)
+from backend.app.utils.filenames import resolve_workspace_doc_path
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +42,8 @@ class RAGService:
         chunk_overlap: int | None = None,
     ) -> None:
         settings = get_settings()
-        self._embedding_model_name = embedding_model or settings.EMBEDDING_MODEL
+        raw_model = embedding_model or settings.EMBEDDING_MODEL
+        self._embedding_model_name = normalize_embedding_model_name(raw_model)
         self._embeddings: Optional[GoogleGenerativeAIEmbeddings] = None
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size or settings.FAISS_CHUNK_SIZE,
@@ -52,13 +58,16 @@ class RAGService:
     # ------------------------------------------------------------------
     @property
     def embeddings(self) -> GoogleGenerativeAIEmbeddings:
-        """Lazily initialise the Google embedding model."""
+        """Lazily initialise the Google embedding model (with 404 self-healing)."""
         if self._embeddings is None:
             settings = get_settings()
-            self._embeddings = GoogleGenerativeAIEmbeddings(
-                model=self._embedding_model_name,
-                google_api_key=settings.GOOGLE_API_KEY,
+            self._embeddings = create_google_embeddings(
+                self._embedding_model_name,
+                settings.GOOGLE_API_KEY,
+                task_type="retrieval_document",
             )
+            resolved = getattr(self._embeddings, "model", self._embedding_model_name)
+            logger.info("RAGService using embedding model: %s", resolved)
         return self._embeddings
 
     # ------------------------------------------------------------------
@@ -123,10 +132,11 @@ class RAGService:
 
         all_documents: List[Document] = []
 
-        for doc_path in doc_paths:
+        for raw_path in doc_paths:
+            doc_path = resolve_workspace_doc_path(raw_path)
             if not os.path.exists(doc_path):
                 if errors is not None:
-                    errors.append(f"Document not found: {doc_path}")
+                    errors.append(f"Document not found: {raw_path}")
                 continue
             try:
                 if doc_path.endswith(".pdf"):

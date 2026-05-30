@@ -7,11 +7,26 @@ via REST API calls to the FastAPI backend at http://localhost:8000.
 from __future__ import annotations
 
 import os
+import re
 import uuid
 import html
+from pathlib import Path
 
 import requests
 import streamlit as st
+
+
+def sanitize_workspace_filename(filename: str) -> str:
+    """Filesystem-safe basename for workspace uploads (spaces, brackets, etc.)."""
+    name = Path(filename).name
+    stem, ext = os.path.splitext(name)
+    ext = ext.lower()
+    stem = re.sub(r"[\s()\[\]{}]+", "_", stem)
+    stem = re.sub(r"[^\w.\-]+", "_", stem, flags=re.ASCII)
+    stem = re.sub(r"_+", "_", stem).strip("._")
+    if not stem:
+        stem = "document"
+    return f"{stem}{ext}"
 
 # ── Backend URL ──
 API_BASE = os.getenv("API_BASE_URL", "http://localhost:8000")
@@ -425,7 +440,7 @@ if prompt:
         base_dir = os.path.join("workspaces", st.session_state.user_id, st.session_state.workspace_id, "files")
         os.makedirs(base_dir, exist_ok=True)
         for f in uploaded_files:
-            safe_name = os.path.basename(f.name)
+            safe_name = sanitize_workspace_filename(f.name)
             path = os.path.join(base_dir, safe_name)
             with open(path, "wb") as w:
                 w.write(f.getbuffer())

@@ -8,10 +8,25 @@ UI-only: collects user input and invokes orchestrator - no business logic here.
 from __future__ import annotations
 
 import os
+import re
+from pathlib import Path
 from typing import List
 import uuid
 
 import streamlit as st
+
+
+def sanitize_workspace_filename(filename: str) -> str:
+    """Filesystem-safe basename for workspace uploads (spaces, brackets, etc.)."""
+    name = Path(filename).name
+    stem, ext = os.path.splitext(name)
+    ext = ext.lower()
+    stem = re.sub(r"[\s()\[\]{}]+", "_", stem)
+    stem = re.sub(r"[^\w.\-]+", "_", stem, flags=re.ASCII)
+    stem = re.sub(r"_+", "_", stem).strip("._")
+    if not stem:
+        stem = "document"
+    return f"{stem}{ext}"
 import html
 from dotenv import load_dotenv
 
@@ -966,7 +981,7 @@ if prompt:
         base_dir = os.path.join("workspaces", st.session_state.user_id, st.session_state.workspace_id, "files")
         os.makedirs(base_dir, exist_ok=True)
         for f in uploaded_files:
-             safe_name = os.path.basename(f.name)
+             safe_name = sanitize_workspace_filename(f.name)
              path = os.path.join(base_dir, safe_name)
              with open(path, "wb") as w: w.write(f.getbuffer())
              doc_paths.append(path)

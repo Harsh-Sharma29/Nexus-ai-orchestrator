@@ -21,7 +21,7 @@ class RAGAgent:
     def __init__(
         self,
         llm_router: LLMRouter,
-        embedding_model: str = "models/embedding-001",
+        embedding_model: str = "gemini-embedding-001",
         chunk_size: int = 1000,
         chunk_overlap: int = 200
     ):
@@ -34,7 +34,15 @@ class RAGAgent:
             chunk_overlap: Overlap between chunks
         """
         self.llm_router = llm_router
-        self._embedding_model_name = embedding_model
+        try:
+            from backend.app.utils.embeddings import normalize_embedding_model_name, create_google_embeddings
+            self._embedding_model_name = normalize_embedding_model_name(embedding_model)
+            self._create_google_embeddings = create_google_embeddings
+        except ImportError:
+            self._embedding_model_name = embedding_model.replace("models/models/", "models/").replace(
+                "models/", "", 1
+            ) if embedding_model.startswith("models/") else embedding_model
+            self._create_google_embeddings = None
         self._embeddings = None  # LAZY: Loaded on first use
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
@@ -75,10 +83,21 @@ Answer:""")
     def embeddings(self):
         """Lazily load Google embeddings on first use (saves RAM)."""
         if self._embeddings is None:
-            self._embeddings = GoogleGenerativeAIEmbeddings(
-                model=self._embedding_model_name,
-                google_api_key=os.getenv("GOOGLE_API_KEY")
-            )
+            api_key = os.getenv("GOOGLE_API_KEY") or ""
+            if self._create_google_embeddings is not None:
+                self._embeddings = self._create_google_embeddings(
+                    self._embedding_model_name,
+                    api_key,
+                    task_type="retrieval_document",
+                )
+            else:
+                model = self._embedding_model_name
+                if not model.startswith("models/"):
+                    model = f"models/{model}"
+                self._embeddings = GoogleGenerativeAIEmbeddings(
+                    model=model,
+                    google_api_key=api_key,
+                )
         return self._embeddings
 
     def _get_workspace_store(self, state: OrchestratorState) -> FAISS:

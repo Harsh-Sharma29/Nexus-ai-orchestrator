@@ -46,7 +46,8 @@ class Settings(BaseSettings):
 
     # ── LLM defaults ─────────────────────────────────────────────────────
     PRIMARY_LLM_MODEL: str = "gemini-2.5-flash"
-    EMBEDDING_MODEL: str = "models/embedding-001"
+    # Bare model id — LangChain adds a single ``models/`` prefix (avoid models/models/…)
+    EMBEDDING_MODEL: str = "gemini-embedding-001"
 
     # ── RAG / FAISS ──────────────────────────────────────────────────────
     FAISS_CHUNK_SIZE: int = 1000

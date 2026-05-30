@@ -28,6 +28,10 @@ from backend.app.agents.state import (
 from backend.app.services.llm_router import AsyncLLMRouter
 from backend.app.services.rag_service import RAGService
 from backend.app.services import storage
+from backend.app.utils.intent_parse import (
+    escape_prompt_template_value,
+    parse_intent_llm_response,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -245,33 +249,45 @@ async def classify_intent_node(state: OrchestratorState) -> OrchestratorState:
         return state
 
     try:
-        prompt_msgs = INTENT_PROMPT.format_messages(query=query, history=history_context, context_info=context_info)
+        prompt_msgs = INTENT_PROMPT.format_messages(
+            query=escape_prompt_template_value(query),
+            history=escape_prompt_template_value(history_context),
+            context_info=escape_prompt_template_value(context_info),
+        )
     except Exception as e:
         state["errors"].append(f"Prompt formatting error: {e}")
-        state["intent"] = Intent.UNKNOWN.value
-        state["intent_confidence"] = 0.0
+        if has_docs:
+            state["intent"] = Intent.RAG.value
+            state["intent_confidence"] = 0.9
+            state["metadata"]["intent_reasoning"] = "Prompt format fallback → document search (RAG)"
+        else:
+            state["intent"] = Intent.UNKNOWN.value
+            state["intent_confidence"] = 0.0
         return state
 
     try:
         response = await llm_router.ainvoke(prompt_msgs, state=state, temperature=0.1)
     except Exception as e:
         state["errors"].append(f"LLM invocation error: {e}")
-        state["intent"] = Intent.UNKNOWN.value
-        state["intent_confidence"] = 0.0
+        if has_docs:
+            state["intent"] = Intent.RAG.value
+            state["intent_confidence"] = 0.9
+        else:
+            state["intent"] = Intent.UNKNOWN.value
+            state["intent_confidence"] = 0.0
         return state
 
     text = getattr(response, "content", None)
     if not isinstance(text, str):
-        state["intent"] = Intent.UNKNOWN.value
-        state["intent_confidence"] = 0.0
+        if has_docs:
+            state["intent"] = Intent.RAG.value
+            state["intent_confidence"] = 0.9
+        else:
+            state["intent"] = Intent.UNKNOWN.value
+            state["intent_confidence"] = 0.0
         return state
 
-    try:
-        parsed = JsonOutputParser().parse(text)
-    except Exception:
-        state["intent"] = Intent.UNKNOWN.value
-        state["intent_confidence"] = 0.0
-        return state
+    parsed = parse_intent_llm_response(text)
 
     intent = parsed.get("intent") or Intent.UNKNOWN.value
     try:
